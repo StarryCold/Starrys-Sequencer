@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starry Sequencer (Recoded)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            background-color: #020617; /* Deep Slate 950 */
+            color: #e2e8f0;
+            /* Font Change: Comic Sans */
+            font-family: 'Comic Sans MS', 'Comic Sans', cursive, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Starry Background Animation */
+        .stars-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(ellipse at bottom, #000033 0%, #000000 100%);
+            overflow: hidden;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 5s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e3a8a; /* Dark Blue */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2563eb; 
+        }
+
+        /* WaveSurfer overrides */
+        .wavesurfer-region {
+            z-index: 50 !important;
+            /* Border left removed here, handled by marker-line now for color control */
+        }
+
+        /* Marker Handle Container */
+        .marker-handle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* The Vertical Line */
+        .marker-line {
+            width: 2px;
+            height: 100%;
+            background: #0000ff; /* Blue */
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        /* Invisible Hit Box for Grabbing */
+        .marker-handle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px; 
+            height: 100%;
+            background: transparent;
+            pointer-events: auto;
+            cursor: grab;
+            z-index: 15;
+        }
+
+        /* The Star Icon */
+        .marker-star {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: #0000ff; /* Blue */
+            text-shadow: 0 0 10px currentColor;
+            z-index: 51;
+            transition: transform 0.2s ease;
+        }
+
+        /* Hover/Active States handled via CSS/JS mix */
+        .marker-handle:hover .marker-star {
+            transform: translateX(-50%) scale(1.3);
+        }
+        
+        .marker-handle.selected .marker-star {
+            transform: translateX(-50%) scale(1.4);
+            z-index: 60;
+            filter: brightness(1.5);
+        }
+        
+        .grabbing {
+            cursor: grabbing !important;
+        }
+
+        /* Range Slider - Starry Theme */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+            width: 100%;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #0000ff; /* Blue */
+            cursor: pointer;
+            margin-top: -6px;
+            border: 2px solid #0f172a;
+            box-shadow: 0 0 8px rgba(0, 0, 255, 0.6);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 2px;
+        }
+
+        input[type=range]:focus {
+            outline: none; 
+        }
+
+        /* Color Input Reset */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            overflow: hidden;
+            border-radius: 50%;
+            background: none;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #334155;
+            border-radius: 50%;
+        }
+
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .glass-button {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+        }
+        .glass-button:hover {
+            background: rgba(51, 65, 85, 0.8);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 0, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Star Background -->
+    <div id="stars-root"></div>
+
+    <div id="root"></div>
+
+    <!-- Main Application Logic -->
+    <script type="text/babel" data-type="module">
+        import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js'
+        import RegionsPlugin from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.esm.js'
+        
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- Star Component ---
+        const StarBackground = () => {
+            const [stars, setStars] = useState([]);
+
+            useEffect(() => {
+                const count = 100;
+                const newStars = [];
+                for(let i=0; i<count; i++) {
+                    newStars.push({
+                        id: i,
+                        top: Math.random() * 100 + '%',
+                        left: Math.random() * 100 + '%',
+                        size: Math.random() * 2 + 1 + 'px',
+                        delay: Math.random() * 5 + 's'
+                    });
+                }
+                setStars(newStars);
+            }, []);
+
+            return (
+                <div className="stars-container">
+                    {stars.map(s => (
+                        <div 
+                            key={s.id} 
+                            className="star" 
+                            style={{
+                                top: s.top, 
+                                left: s.left, 
+                                width: s.size, 
+                                height: s.size, 
+                                animationDelay: s.delay
+                            }}
+                        ></div>
+                    ))}
+                </div>
+            );
+        };
+
+        const StarRoot = ReactDOM.createRoot(document.getElementById('stars-root'));
+        StarRoot.render(<StarBackground />);
+
+
+        // --- Toast Notification Component ---
+        const Toast = ({ message, type = 'success', onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const isError = type === 'error';
+
+            return (
+                <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] animate-bounce">
+                    <div className={`${isError ? 'bg-red-600 border-red-400' : 'bg-blue-600 border-blue-400'} text-white px-6 py-2 rounded-full shadow-lg flex items-center gap-2 border`}>
+                        <i className={`fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-check-circle'}`}></i>
+                        <span className="font-medium text-sm">{message}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Helpers ---
+        // Convert Hex to RGBA for region body
+        const hexToRgba = (hex, alpha) => {
+            let c;
+            if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                c= hex.substring(1).split('');
+                if(c.length== 3){
+                    c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+                }
+                c= '0x'+c.join('');
+                return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
+            }
+            return `rgba(0, 0, 255, ${alpha})`; // Default fallback blue
+        }
+
+        // --- Main App Component ---
+        function App() {
+            const [isLoaded, setIsLoaded] = useState(false);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [zoom, setZoom] = useState(50); 
+            const [fileName, setFileName] = useState("");
+            const [markers, setMarkers] = useState([]);
+            const [currentTime, setCurrentTime] = useState(0);
+            
+            const [selectedMarkerId, setSelectedMarkerId] = useState(null);
+            const [activeMarkerId, setActiveMarkerId] = useState(null); 
+            const [clipboard, setClipboard] = useState(null);
+            
+            // Modals & Tabs
+            const [showClearModal, setShowClearModal] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
+            const [showCredits, setShowCredits] = useState(false);
+            const [toast, setToast] = useState(null); // { msg, type }
+            const [storageTab, setStorageTab] = useState('local'); // 'local' or 'file'
+            const [copyTab, setCopyTab] = useState('clipboard'); // 'clipboard' or 'download'
+            
+            // Settings State
+            const [playbackRate, setPlaybackRate] = useState(1);
+            const [volume, setVolume] = useState(1);
+            const [waveHeight, setWaveHeight] = useState(180);
+            const [autoScroll, setAutoScroll] = useState(true);
+
+            // Time Editing State
+            const [editingId, setEditingId] = useState(null);
+            const [tempTime, setTempTime] = useState("");
+
+            // Drag State
+            const [isDragging, setIsDragging] = useState(false);
+            const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, moved: false });
+
+            const mousePosRef = useRef({ x: 0, y: 0 });
+            const containerRef = useRef(null);
+            const wsRef = useRef(null);
+            const wsRegionsRef = useRef(null);
+            const fileInputRef = useRef(null);
+            
+            const animationRef = useRef(null);
+
+            const showToast = (msg, type = 'success') => {
+                setToast({ msg, type });
+            };
+
+            useEffect(() => {
+                const handleMouseMove = (e) => {
+                    mousePosRef.current = { x: e.clientX, y: e.clientY };
+                };
+                window.addEventListener('mousemove', handleMouseMove);
+                return () => window.removeEventListener('mousemove', handleMouseMove);
+            }, []);
+
+            // Playback Hit Test
+            useEffect(() => {
+                const checkHit = () => {
+                    if (!wsRef.current) return;
+                    
+                    const t = wsRef.current.getCurrentTime();
+                    setCurrentTime(t); 
+
+                    if (markers.length > 0) {
+                        const hit = markers.find(m => Math.abs(m.time - t) < 0.1);
+                        if (hit) {
+                            setActiveMarkerId(prev => (prev !== hit.id ? hit.id : prev));
+                        } else {
+                            setActiveMarkerId(prev => (prev !== null ? null : prev));
+                        }
+                    }
+                    
+                    if (isPlaying) {
+                        animationRef.current = requestAnimationFrame(checkHit);
+                    }
+                };
+
+                if (isPlaying) {
+                    animationRef.current = requestAnimationFrame(checkHit);
+                } else {
+                    if(animationRef.current) cancelAnimationFrame(animationRef.current);
+                }
+
+                return () => {
+                    if(animationRef.current) cancelAnimationFrame(animationRef.current);
+                };
+            }, [isPlaying, markers]); 
+
+            // Initialize WaveSurfer
+            useEffect(() => {
+                if (!containerRef.current) return;
+
+                // Starry Gradient Blue
+                let waveColor = '#0000ff'; 
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 10;
+                    canvas.height = 180;
+                    const ctx = canvas.getContext('2d');
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+                    gradient.addColorStop(0, '#0000ff'); // Blue
+                    gradient.addColorStop(0.5, '#0000ff'); // Blue
+                    gradient.addColorStop(1, '#00ffff'); // Cyan
+                    waveColor = gradient;
+                } catch (e) {
+                    console.warn("Canvas gradient creation failed", e);
+                }
+
+                const ws = WaveSurfer.create({
+                    container: containerRef.current,
+                    waveColor: waveColor, 
+                    progressColor: '#ffffff', 
+                    cursorColor: 'rgba(255, 255, 255, 0.8)', 
+                    barWidth: 3,
+                    barGap: 2,
+                    barRadius: 30,
+                    height: waveHeight, 
+                    normalize: true,
+                    minPxPerSec: zoom,
+                    autoScroll: autoScroll,
+                    backend: 'WebAudio', // Explicitly set backend
+                    plugins: []
+                });
+
+                const wsRegions = ws.registerPlugin(RegionsPlugin.create());
+                wsRegionsRef.current = wsRegions;
+                wsRef.current = ws;
+
+                ws.on('play', () => setIsPlaying(true));
+                ws.on('pause', () => setIsPlaying(false));
+                ws.on('timeupdate', (t) => {
+                    if (!isPlaying) setCurrentTime(t);
+                });
+                ws.on('finish', () => setIsPlaying(false));
+                
+                // --- ERROR HANDLING ---
+                ws.on('error', (err) => {
+                    console.error("WaveSurfer Error:", err);
+                    showToast("Error decoding audio: " + (typeof err === 'string' ? err : err.message), 'error');
+                    setIsLoaded(false); 
+                });
+
+                ws.on('click', () => {
+                   if (!dragRef.current.moved) {
+                       setSelectedMarkerId(null);
+                       updateRegionStyles(null); 
+                   }
+                });
+                
+                ws.on('ready', () => {
+                    setIsLoaded(true);
+                    setTimeout(() => {
+                        if(wsRef.current) {
+                            try {
+                                // Safeguard zoom call
+                                if(wsRef.current.getDuration() > 0) {
+                                    wsRef.current.zoom(zoom);
+                                }
+                            } catch(e) {
+                                console.warn("Initial zoom failed", e);
+                            }
+                        }
+                    }, 50);
+                });
+
+                wsRegions.on('region-created', (region) => {
+                    updateRegionElement(region, selectedMarkerId === region.id);
+                    if (!region.isBulkUpdate) syncRegionsToState();
+                });
+
+                wsRegions.on('region-updated', (region) => {
+                     updateRegionElement(region, selectedMarkerId === region.id);
+                     syncRegionsToState();
+                });
+
+                wsRegions.on('region-clicked', (region, e) => {
+                    e.stopPropagation(); 
+                    setSelectedMarkerId(region.id);
+                    updateRegionStyles(region.id);
+                });
+
+                wsRegions.on('region-double-clicked', (region) => {
+                    region.remove();
+                    syncRegionsToState();
+                    setSelectedMarkerId(null);
+                });
+
+                return () => {
+                    ws.destroy();
+                };
+            }, []);
+
+            // Settings Effects
+            useEffect(() => { if (wsRef.current) wsRef.current.setPlaybackRate(playbackRate); }, [playbackRate]);
+            useEffect(() => { if (wsRef.current) wsRef.current.setVolume(volume); }, [volume]);
+            
+            // Zoom Effect - guarded
+            useEffect(() => {
+                if(wsRef.current && isLoaded) {
+                    try { 
+                        // Guard against WaveSurfer throwing if no audio
+                        if(wsRef.current.getDuration() > 0) {
+                            wsRef.current.zoom(zoom); 
+                        }
+                    } catch (e) { 
+                        // Silent catch for harmless zoom errors during load
+                        // console.warn("Zoom update error", e); 
+                    }
+                }
+            }, [zoom, isLoaded]);
+            
+            useEffect(() => { if(wsRef.current) wsRef.current.setOptions({ height: waveHeight }); }, [waveHeight]);
+            useEffect(() => { if(wsRef.current) wsRef.current.setOptions({ autoScroll: autoScroll }); }, [autoScroll]);
+
+            const resetSettings = () => {
+                setPlaybackRate(1);
+                setVolume(1);
+                setZoom(50);
+                setWaveHeight(180);
+                setAutoScroll(true);
+            };
+
+            // Drag Scrolling Logic
+            const handleWaveMouseDown = (e) => {
+                if (e.target.closest('.marker-handle') || e.target.closest('.wavesurfer-region')) return;
+                
+                if (wsRef.current) {
+                    const wrapper = wsRef.current.getWrapper();
+                    dragRef.current = {
+                        isDown: true,
+                        startX: e.pageX,
+                        scrollLeft: wrapper.scrollLeft,
+                        moved: false
+                    };
+                    setIsDragging(true);
+                }
+            };
+
+            const handleWaveMouseMove = (e) => {
+                if (!dragRef.current.isDown || !wsRef.current) return;
+                e.preventDefault();
+                const x = e.pageX;
+                const walk = (x - dragRef.current.startX); 
+                
+                if (!dragRef.current.moved && Math.abs(walk) > 3) {
+                    dragRef.current.moved = true;
+                }
+
+                if (dragRef.current.moved) {
+                    requestAnimationFrame(() => {
+                        if(wsRef.current) {
+                            const wrapper = wsRef.current.getWrapper();
+                            wrapper.scrollLeft = dragRef.current.scrollLeft - walk;
+                        }
+                    });
+                }
+            };
+
+            const handleWaveMouseUp = () => {
+                dragRef.current.isDown = false;
+                setIsDragging(false);
+            };
+
+            // Region/Marker UI Updates (DYNAMIC COLOR HANDLING)
+            const updateRegionElement = (region, isSelected) => {
+                if (!region.element) return;
+                let handle = region.element.querySelector('.marker-handle');
+                
+                // Get Color from Region Data - default #0000ff
+                const colorHex = region.data?.color || '#0000ff';
+                const label = region.data?.label || "marker";
+
+                if (!handle) {
+                    handle = document.createElement('div');
+                    handle.className = 'marker-handle';
+                    // Inner structure for dynamic coloring
+                    handle.innerHTML = `
+                        <div class="marker-line"></div>
+                        <i class="fa-solid fa-star marker-star"></i>
+                    `;
+                    region.element.appendChild(handle);
+                }
+
+                handle.title = label;
+                
+                // Apply dynamic color
+                const line = handle.querySelector('.marker-line');
+                const star = handle.querySelector('.marker-star');
+                
+                if (line) {
+                    line.style.backgroundColor = colorHex;
+                    line.style.boxShadow = `0 0 8px ${colorHex}`;
+                }
+                if (star) {
+                    star.style.color = colorHex;
+                    star.style.textShadow = `0 0 10px ${colorHex}`;
+                }
+
+                if (isSelected) handle.classList.add('selected');
+                else handle.classList.remove('selected');
+            };
+
+            const updateRegionStyles = (activeId) => {
+                if (!wsRegionsRef.current) return;
+                const regions = wsRegionsRef.current.getRegions();
+                regions.forEach(r => {
+                    updateRegionElement(r, r.id === activeId);
+                    
+                    const colorHex = r.data?.color || '#0000ff';
+                    const baseAlpha = r.id === activeId ? 0.3 : 0.05;
+                    const rgba = hexToRgba(colorHex, baseAlpha);
+                    r.setOptions({ color: rgba });
+                });
+            };
+
+            const confirmClearAll = () => {
+                if (!wsRegionsRef.current) return;
+                wsRegionsRef.current.clearRegions();
+                setMarkers([]);
+                setSelectedMarkerId(null);
+                setShowClearModal(false);
+            };
+            
+            const syncRegionsToState = useCallback(() => {
+                if (!wsRegionsRef.current) return;
+                const regions = wsRegionsRef.current.getRegions();
+                setMarkers(prevMarkers => {
+                    return regions.map(r => {
+                        const existing = prevMarkers.find(m => m.id === r.id);
+                        let label = existing ? existing.label : `marker`;
+                        let color = existing ? existing.color : '#0000ff';
+
+                        if (r.data) {
+                            if (r.data.label) label = r.data.label;
+                            if (r.data.color) color = r.data.color;
+                        }
+                        
+                        return {
+                            id: r.id,
+                            time: r.start,
+                            label: label,
+                            color: color
+                        };
+                    }).sort((a, b) => a.time - b.time);
+                });
+            }, []);
+
+            // Editing Time
+            const startEditingTime = (id, time) => {
+                setEditingId(id);
+                setTempTime(time.toFixed(3));
+            };
+
+            const handleTimeChange = (e) => {
+                setTempTime(e.target.value);
+            };
+
+            const commitTime = () => {
+                if (editingId !== null && wsRegionsRef.current) {
+                    const newTime = parseFloat(tempTime);
+                    if (!isNaN(newTime) && newTime >= 0) {
+                        const region = wsRegionsRef.current.getRegions().find(r => r.id === editingId);
+                        if (region) {
+                            region.setOptions({ start: newTime, end: newTime });
+                            setMarkers(prev => prev.map(m => 
+                                m.id === editingId ? { ...m, time: newTime } : m
+                            ).sort((a, b) => a.time - b.time));
+                        }
+                    }
+                }
+                setEditingId(null);
+                setTempTime("");
+            };
+
+            // Actions
+            const addMarkerAtHead = useCallback(() => {
+                if (!wsRef.current || !isLoaded) return; 
+                const time = wsRef.current.getCurrentTime();
+                const label = "marker";
+                const color = "#0000ff"; // Default Blue
+                const r = wsRegionsRef.current.addRegion({
+                    start: time,
+                    end: time,
+                    color: hexToRgba(color, 0.1),
+                    drag: true,
+                    resize: false,
+                    data: { label: label, color: color }
+                });
+                setSelectedMarkerId(r.id);
+                updateRegionStyles(r.id);
+            }, [isLoaded]);
+
+            const copySelectedMarker = useCallback(() => {
+                if (!selectedMarkerId || !wsRegionsRef.current) return;
+                const regions = wsRegionsRef.current.getRegions();
+                const region = regions.find(r => r.id === selectedMarkerId);
+                if (region) {
+                    const markerData = markers.find(m => m.id === selectedMarkerId);
+                    const label = markerData ? markerData.label : "marker";
+                    const color = markerData ? markerData.color : "#0000ff";
+                    setClipboard({ label, color });
+                    showToast(`Copied "${label}" to memory`);
+                }
+            }, [selectedMarkerId, markers]);
+
+            const pasteMarker = useCallback(() => {
+                if (!clipboard || !wsRef.current || !containerRef.current || !isLoaded) return;
+                
+                let time;
+                const rect = containerRef.current.getBoundingClientRect();
+                const { x, y } = mousePosRef.current;
+
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    const wrapper = wsRef.current.getWrapper();
+                    const scrollLeft = wrapper.scrollLeft;
+                    const relX = x - rect.left;
+                    const totalPx = scrollLeft + relX;
+                    const duration = wsRef.current.getDuration();
+                    const totalWidth = wrapper.scrollWidth;
+                    const effectivePxPerSec = duration > 0 ? totalWidth / duration : 50; 
+                    time = totalPx / effectivePxPerSec;
+                    time = Math.max(0, Math.min(time, duration));
+                } else {
+                    time = wsRef.current.getCurrentTime();
+                }
+
+                const newRegion = wsRegionsRef.current.addRegion({
+                    start: time,
+                    end: time,
+                    color: hexToRgba(clipboard.color, 0.1),
+                    drag: true,
+                    resize: false,
+                    data: { label: clipboard.label, color: clipboard.color }
+                });
+                setSelectedMarkerId(newRegion.id);
+                updateRegionStyles(newRegion.id);
+            }, [clipboard, isLoaded]);
+
+            const duplicateSelectedMarker = useCallback(() => {
+                if (!selectedMarkerId) return;
+                const markerData = markers.find(m => m.id === selectedMarkerId);
+                if (markerData && wsRef.current && isLoaded) {
+                    const time = wsRef.current.getCurrentTime();
+                    const newRegion = wsRegionsRef.current.addRegion({
+                        start: time,
+                        end: time,
+                        color: hexToRgba(markerData.color, 0.1),
+                        drag: true,
+                        resize: false,
+                        data: { label: markerData.label, color: markerData.color }
+                    });
+                    setSelectedMarkerId(newRegion.id);
+                    updateRegionStyles(newRegion.id);
+                }
+            }, [selectedMarkerId, markers, isLoaded]);
+
+            const deleteSelectedMarker = useCallback(() => {
+                if (selectedMarkerId && wsRegionsRef.current) {
+                    const region = wsRegionsRef.current.getRegions().find(r => r.id === selectedMarkerId);
+                    if (region) {
+                        region.remove();
+                        syncRegionsToState();
+                        setSelectedMarkerId(null);
+                    }
+                }
+            }, [selectedMarkerId, syncRegionsToState]);
+
+            const deleteMarker = (id) => {
+                const regions = wsRegionsRef.current.getRegions();
+                const region = regions.find(r => r.id === id);
+                if (region) {
+                    region.remove();
+                    syncRegionsToState();
+                }
+            };
+
+            // Keyboard Shortcuts
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+                    
+                    if (e.code === 'Space') { 
+                        e.preventDefault(); 
+                        if (wsRef.current && isLoaded) wsRef.current.playPause(); 
+                    }
+                    if (e.key.toLowerCase() === 'm') { 
+                        e.preventDefault(); 
+                        addMarkerAtHead(); 
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { 
+                        copySelectedMarker(); 
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { 
+                        pasteMarker(); 
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { 
+                        e.preventDefault(); 
+                        duplicateSelectedMarker(); 
+                    }
+                    if (e.key === 'Delete' || e.key === 'Backspace') { 
+                        deleteSelectedMarker(); 
+                    }
+                };
+
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [addMarkerAtHead, copySelectedMarker, pasteMarker, duplicateSelectedMarker, deleteSelectedMarker, isLoaded]);
+
+            // File IO
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setIsLoaded(false);
+
+                    // Reset WaveSurfer state safely
+                    if (wsRef.current) {
+                        try {
+                            wsRef.current.empty();
+                        } catch(err) {
+                            console.warn("Could not empty ws", err);
+                        }
+                    }
+
+                    const objectUrl = URL.createObjectURL(file);
+                    
+                    setTimeout(() => {
+                        if (wsRef.current) {
+                            wsRef.current.load(objectUrl);
+                        }
+                    }, 50);
+
+                    setFileName(file.name);
+                    wsRegionsRef.current.clearRegions();
+                    setMarkers([]);
+                    
+                    // Reset input so user can re-select same file if they fixed it
+                    e.target.value = null;
+                }
+            };
+
+            const togglePlay = () => {
+                if(wsRef.current && isLoaded) wsRef.current.playPause();
+            };
+
+            const updateMarkerLabel = (id, newLabel) => {
+                setMarkers(prev => prev.map(m => 
+                    m.id === id ? { ...m, label: newLabel } : m
+                ));
+
+                if (wsRegionsRef.current) {
+                    const region = wsRegionsRef.current.getRegions().find(r => r.id === id);
+                    if (region) {
+                        region.setOptions({ data: { ...region.data, label: newLabel } });
+                        if (region.element) {
+                            const handle = region.element.querySelector('.marker-handle');
+                            if(handle) handle.title = newLabel;
+                        }
+                    }
+                }
+            };
+
+            const updateMarkerColor = (id, newColor) => {
+                setMarkers(prev => prev.map(m => 
+                    m.id === id ? { ...m, color: newColor } : m
+                ));
+
+                if (wsRegionsRef.current) {
+                    const region = wsRegionsRef.current.getRegions().find(r => r.id === id);
+                    if (region) {
+                        // Update Data
+                        region.setOptions({ 
+                            data: { ...region.data, color: newColor }
+                        });
+                        
+                        // Update Styles immediately
+                        updateRegionElement(region, selectedMarkerId === region.id);
+                        const baseAlpha = selectedMarkerId === region.id ? 0.3 : 0.05;
+                        region.setOptions({ color: hexToRgba(newColor, baseAlpha) });
+                    }
+                }
+            };
+
+            const seekToMarker = (time) => wsRef.current.setTime(time);
+
+            // ---- LOCAL / FILE STORAGE ----
+            const saveToLocal = () => {
+                try {
+                    localStorage.setItem('starry_sequencer_data', JSON.stringify(markers));
+                    showToast('Saved to Local Storage');
+                } catch (e) {
+                    showToast('Failed to save locally', 'error');
+                }
+            };
+
+            const loadFromLocal = () => {
+                try {
+                    const data = localStorage.getItem('starry_sequencer_data');
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        if (Array.isArray(parsed)) {
+                            if(wsRegionsRef.current) wsRegionsRef.current.clearRegions();
+                            parsed.forEach(m => {
+                                // Fallback for old saves without color
+                                const color = m.color || '#0000ff';
+                                wsRegionsRef.current.addRegion({
+                                    start: m.time, end: m.time,
+                                    color: hexToRgba(color, 0.1),
+                                    drag: true, resize: false,
+                                    data: { label: m.label || "marker", color: color }
+                                });
+                            });
+                            syncRegionsToState();
+                            showToast('Loaded from Local Storage');
+                        }
+                    } else {
+                        showToast('No local data found', 'error');
+                    }
+                } catch (e) {
+                    showToast('Failed to load locally', 'error');
+                }
+            };
+
+            const saveToFile = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(markers, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href",     dataStr);
+                downloadAnchorNode.setAttribute("download", (fileName || "sequencer") + "_progress.json");
+                document.body.appendChild(downloadAnchorNode); 
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+                showToast('Progress Saved');
+            };
+
+            // ---- COPY / DOWNLOAD HELPERS ----
+            const copyToClipboardFunc = (text, type) => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast(`${type} copied to clipboard!`);
+                } catch (err) {
+                    showToast("Failed to copy. Please allow clipboard access.", 'error');
+                }
+                document.body.removeChild(textArea);
+            };
+
+            const downloadTextFile = (content, defaultName) => {
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = defaultName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            const copyTimeTxt = () => {
+                const content = markers.map(m => m.time.toFixed(4)).join("\n");
+                copyToClipboardFunc(content, "Times");
+            };
+
+            const copyLabelTxt = () => {
+                const content = markers.map(m => m.label).join("\n");
+                copyToClipboardFunc(content, "Labels");
+            };
+
+            const downloadTimeTxt = () => {
+                 const content = markers.map(m => m.time.toFixed(4)).join("\n");
+                 downloadTextFile(content, (fileName || "sequencer") + "_times.txt");
+                 showToast("Times downloaded");
+            };
+
+            const downloadLabelTxt = () => {
+                 const content = markers.map(m => m.label).join("\n");
+                 downloadTextFile(content, (fileName || "sequencer") + "_labels.txt");
+                 showToast("Labels downloaded");
+            };
+
+            const formatTime = (seconds) => {
+                if (isNaN(seconds)) return "00:00:00";
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                const ms = Math.floor((seconds % 1) * 100);
+                const m = mins < 10 ? '0' + mins : mins;
+                const s = secs < 10 ? '0' + secs : secs;
+                const msStr = ms < 10 ? '0' + ms : ms;
+                return `${m}:${s}:${msStr}`;
+            };
+
+            const displayMarkerId = activeMarkerId || selectedMarkerId;
+            const displayMarker = displayMarkerId ? markers.find(m => m.id === displayMarkerId) : null;
+            const isHighlighting = !!activeMarkerId;
+            const displayColor = displayMarker ? (displayMarker.color || '#0000ff') : '#0000ff';
+
+            return (
+                <div className="min-h-screen flex flex-col p-6 max-w-6xl mx-auto relative z-10">
+                    
+                    {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <div className="text-center md:text-left">
+                            <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-400 tracking-tight drop-shadow-[0_0_10px_rgba(0,0,255,0.5)]">
+                                Starry Sequencer
+                            </h1>
+                            <span className="text-xs text-cyan-500 font-mono tracking-widest uppercase ml-1 opacity-80">Used flonk sequencer as base</span>
+                        </div>
+                        <div className="flex gap-3">
+                             <button 
+                                onClick={() => setShowCredits(true)}
+                                className="glass-button text-blue-200 px-4 py-2 rounded text-sm font-medium transition"
+                            >
+                                <i className="fa-solid fa-star mr-2"></i> Credits
+                            </button>
+                             <button 
+                                onClick={() => setShowSettings(true)}
+                                className="glass-button text-blue-200 px-4 py-2 rounded text-sm font-medium transition"
+                            >
+                                <i className="fa-solid fa-gear mr-2"></i> Settings
+                            </button>
+                             <button 
+                                onClick={() => fileInputRef.current.click()}
+                                className="glass-button bg-blue-900/40 text-white px-4 py-2 rounded text-sm font-medium transition border-blue-500/30 hover:bg-blue-800/50"
+                            >
+                                <i className="fa-solid fa-upload mr-2"></i> Upload Audio
+                            </button>
+                            <input 
+                                ref={fileInputRef} 
+                                type="file" 
+                                accept="audio/*" 
+                                className="hidden" 
+                                onChange={handleFileUpload}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Main Area */}
+                    <div className="glass-panel rounded-xl p-6 mb-6">
+                        
+                        {/* Status Bar */}
+                        <div className="relative flex justify-between items-center mb-4 text-xs font-mono text-cyan-200/70 uppercase tracking-widest">
+                            <div className="truncate max-w-[200px]">
+                                {fileName ? (
+                                    <span className="text-blue-300">{fileName}</span>
+                                ) : (
+                                    <span>No File Loaded</span>
+                                )}
+                            </div>
+
+                            {/* Marker Display (Center) */}
+                            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-all duration-100 z-20">
+                                {displayMarker ? (
+                                    <div 
+                                        className={`flex items-center gap-3 px-6 py-2 rounded-full transition-all duration-150 ${
+                                        isHighlighting 
+                                            ? 'bg-blue-900/90 border-2 border-white shadow-[0_0_30px_rgba(0,0,255,0.6)] scale-110' 
+                                            : 'bg-slate-900/80 border border-blue-500/50 shadow-[0_0_15px_rgba(0,0,255,0.2)]'
+                                    }`}
+                                        style={{ borderColor: isHighlighting ? 'white' : displayColor }}
+                                    >
+                                        <div 
+                                            className={`w-3 h-3 rounded-full transition-colors ${isHighlighting ? 'bg-white shadow-[0_0_10px_#ffffff]' : ''}`}
+                                            style={{ backgroundColor: isHighlighting ? 'white' : displayColor, boxShadow: `0 0 8px ${displayColor}` }}
+                                        ></div>
+                                        <span className={`font-bold tracking-normal normal-case text-base transition-colors ${isHighlighting ? 'text-white' : 'text-blue-100'}`}>
+                                            {displayMarker.label || "marker"}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="text-slate-700/50 font-black text-2xl tracking-widest select-none opacity-20">
+                                        STARRY
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                {clipboard && <span className="text-green-400 hidden sm:inline">COPIED: {clipboard.label}</span>}
+                                <span className="text-white text-base font-bold tabular-nums shadow-black drop-shadow-md">{formatTime(currentTime)}</span>
+                            </div>
+                        </div>
+
+                        {/* Visualizer */}
+                        <div 
+                            className={`relative mb-6 bg-slate-950/50 rounded-lg overflow-hidden border border-blue-500/20 shadow-inner ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                            onMouseDown={handleWaveMouseDown}
+                            onMouseMove={handleWaveMouseMove}
+                            onMouseUp={handleWaveMouseUp}
+                            onMouseLeave={handleWaveMouseUp}
+                        >
+                            <div ref={containerRef} className="w-full opacity-90 hover:opacity-100 transition-opacity duration-300"></div>
+                            
+                            {!isLoaded && (
+                                <div className="absolute inset-0 flex items-center justify-center text-blue-300/50 text-sm pointer-events-none">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <i className="fa-solid fa-music text-3xl mb-2 opacity-50"></i>
+                                        <span>Select an audio file to begin sequencing</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={togglePlay} 
+                                    disabled={!isLoaded}
+                                    className={`w-12 h-12 flex items-center justify-center rounded-full transition shadow-lg ${isPlaying ? 'bg-blue-500 text-white shadow-[0_0_20px_rgba(0,0,255,0.6)]' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'} disabled:opacity-50 disabled:shadow-none`}
+                                >
+                                    {isPlaying ? <i className="fa-solid fa-pause"></i> : <i className="fa-solid fa-play ml-1"></i>}
+                                </button>
+                                <button 
+                                    onClick={() => { if(wsRef.current) wsRef.current.stop(); setIsPlaying(false); }}
+                                    disabled={!isLoaded}
+                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition disabled:opacity-50"
+                                >
+                                    <i className="fa-solid fa-stop"></i>
+                                </button>
+                            </div>
+                            
+                            <div className="h-8 w-px bg-slate-700 mx-2"></div>
+
+                            <button 
+                                onClick={addMarkerAtHead}
+                                disabled={!isLoaded}
+                                className="glass-button text-blue-200 px-5 py-2 rounded-lg font-medium text-sm disabled:opacity-50 transition border border-blue-500/30 hover:bg-blue-900/40 hover:border-blue-400"
+                            >
+                                <i className="fa-solid fa-plus mr-2 text-blue-400"></i> Add Marker
+                            </button>
+
+                            <button 
+                                onClick={() => setShowClearModal(true)}
+                                disabled={!isLoaded}
+                                className="text-slate-500 hover:text-red-400 px-3 py-2 text-sm disabled:opacity-50 transition ml-auto"
+                            >
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Data Panel */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* Marker List */}
+                        <div className="lg:col-span-2 glass-panel rounded-xl p-6">
+                            <h2 className="text-sm font-bold text-blue-300 uppercase tracking-wider mb-4 border-b border-blue-500/20 pb-2 flex justify-between">
+                                <span>Markers</span>
+                                <span className="text-slate-500 text-xs normal-case font-normal">{markers.length} items</span>
+                            </h2>
+                            
+                            <div className="overflow-y-auto max-h-64 pr-2 custom-scrollbar">
+                                {markers.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-500 text-sm border border-dashed border-slate-700 rounded-lg bg-slate-900/30">
+                                        No markers created yet
+                                    </div>
+                                ) : (
+                                    <table className="w-full text-left border-collapse text-sm">
+                                        <thead>
+                                            <tr className="text-slate-400 border-b border-slate-700/50">
+                                                <th className="py-2 pl-2 font-medium w-32">Time</th>
+                                                <th className="py-2 pl-2 font-medium w-16">Color</th>
+                                                <th className="py-2 font-medium">Label</th>
+                                                <th className="py-2 text-right font-medium w-12"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {markers.map((m, idx) => (
+                                                <tr 
+                                                    key={m.id} 
+                                                    className={`group border-b border-slate-800/50 last:border-0 hover:bg-white/5 transition ${selectedMarkerId === m.id ? 'bg-blue-900/20' : ''}`}
+                                                    onClick={() => {
+                                                        setSelectedMarkerId(m.id);
+                                                        updateRegionStyles(m.id);
+                                                        seekToMarker(m.time);
+                                                    }}
+                                                >
+                                                    <td className="py-2 pl-2 font-mono text-cyan-400">
+                                                        <input 
+                                                            type="text"
+                                                            className="bg-transparent border-none focus:ring-0 text-cyan-400 w-full outline-none p-0 font-mono"
+                                                            value={editingId === m.id ? tempTime : m.time.toFixed(3)}
+                                                            onFocus={() => startEditingTime(m.id, m.time)}
+                                                            onChange={handleTimeChange}
+                                                            onBlur={commitTime}
+                                                            onKeyDown={(e) => { if(e.key === 'Enter') commitTime(); e.stopPropagation(); }}
+                                                            onClick={(e) => e.stopPropagation()} 
+                                                        />
+                                                    </td>
+                                                    <td className="py-2 pl-2">
+                                                        <input 
+                                                            type="color"
+                                                            value={m.color || '#0000ff'}
+                                                            onChange={(e) => updateMarkerColor(m.id, e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            title="Change marker color"
+                                                        />
+                                                    </td>
+                                                    <td className="py-2">
+                                                        <input 
+                                                            type="text" 
+                                                            value={m.label}
+                                                            onChange={(e) => updateMarkerLabel(m.id, e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()} 
+                                                            className="bg-transparent border-none focus:ring-0 text-slate-200 w-full outline-none placeholder-slate-600 focus:text-white transition-colors"
+                                                            placeholder="Label..."
+                                                        />
+                                                    </td>
+                                                    <td className="py-2 text-right">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); deleteMarker(m.id); }}
+                                                            className="text-slate-600 hover:text-red-400 transition px-2 opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <i className="fa-solid fa-times"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Export / Storage Panel */}
+                        <div className="glass-panel rounded-xl p-6">
+                            <h2 className="text-sm font-bold text-blue-300 uppercase tracking-wider mb-4 border-b border-blue-500/20 pb-2">This</h2>
+                            
+                            {/* Tabs */}
+                            <div className="flex bg-slate-900/50 p-1 rounded-lg mb-4">
+                                <button 
+                                    onClick={() => setStorageTab('local')}
+                                    className={`flex-1 py-1 text-xs font-bold rounded transition ${storageTab === 'local' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Local
+                                </button>
+                                <button 
+                                    onClick={() => setStorageTab('file')}
+                                    className={`flex-1 py-1 text-xs font-bold rounded transition ${storageTab === 'file' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    File
+                                </button>
+                            </div>
+
+                            {/* Local Tab Content */}
+                            {storageTab === 'local' && (
+                                <div className="space-y-2 mb-4 animate-fade-in">
+                                     <button 
+                                        onClick={saveToLocal}
+                                        disabled={markers.length === 0}
+                                        className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-sm border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                     >
+                                        <span>Save to Local</span>
+                                        <i className="fa-solid fa-floppy-disk text-cyan-500"></i>
+                                     </button>
+                                     <button 
+                                        onClick={loadFromLocal}
+                                        className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-sm border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                     >
+                                        <span>Load from Local</span>
+                                        <i className="fa-solid fa-download text-green-500"></i>
+                                     </button>
+                                </div>
+                            )}
+
+                            {/* File Tab Content */}
+                            {storageTab === 'file' && (
+                                <div className="space-y-2 mb-4 animate-fade-in">
+                                    <button 
+                                        onClick={saveToFile}
+                                        disabled={markers.length === 0}
+                                        className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-sm border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                    >
+                                        <span>Save Project (.json)</span>
+                                        <i className="fa-solid fa-file-export text-yellow-500"></i>
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="h-px bg-slate-700/50 my-1"></div>
+
+                            {/* Raw Data (Copy Pastable) Section */}
+                            <div className="mt-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <p className="text-xs text-slate-500 uppercase font-bold">Raw Data</p>
+                                    <div className="flex bg-slate-900/50 p-0.5 rounded">
+                                        <button 
+                                            onClick={() => setCopyTab('clipboard')}
+                                            className={`px-2 py-0.5 text-[10px] font-bold rounded transition ${copyTab === 'clipboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            Copy
+                                        </button>
+                                        <button 
+                                            onClick={() => setCopyTab('download')}
+                                            className={`px-2 py-0.5 text-[10px] font-bold rounded transition ${copyTab === 'download' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            File
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {copyTab === 'clipboard' ? (
+                                    <div className="space-y-2 animate-fade-in">
+                                         <button 
+                                            onClick={copyTimeTxt}
+                                            disabled={markers.length === 0}
+                                            className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-xs border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                        >
+                                            <span>Copy Times</span>
+                                            <i className="fa-regular fa-clipboard text-slate-500"></i>
+                                        </button>
+                                        <button 
+                                            onClick={copyLabelTxt}
+                                            disabled={markers.length === 0}
+                                            className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-xs border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                        >
+                                            <span>Copy Labels</span>
+                                            <i className="fa-regular fa-clipboard text-slate-500"></i>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 animate-fade-in">
+                                         <button 
+                                            onClick={downloadTimeTxt}
+                                            disabled={markers.length === 0}
+                                            className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-xs border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                        >
+                                            <span>Download Times (.txt)</span>
+                                            <i className="fa-solid fa-file-arrow-down text-slate-500"></i>
+                                        </button>
+                                        <button 
+                                            onClick={downloadLabelTxt}
+                                            disabled={markers.length === 0}
+                                            className="w-full glass-button hover:bg-blue-900/30 text-slate-300 hover:text-white py-2 px-3 rounded text-xs border border-slate-700 transition disabled:opacity-50 flex items-center justify-between"
+                                        >
+                                            <span>Download Labels (.txt)</span>
+                                            <i className="fa-solid fa-file-arrow-down text-slate-500"></i>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Settings Modal */}
+                    {showSettings && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
+                            <div className="glass-panel border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
+                                <div className="flex justify-between items-center mb-6 relative z-10">
+                                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Settings</h3>
+                                    <button onClick={() => setShowSettings(false)} className="text-slate-500 hover:text-white transition">
+                                        <i className="fa-solid fa-times text-lg"></i>
+                                    </button>
+                                </div>
+                                
+                                <div className="space-y-6 relative z-10">
+                                    {/* Visual Group */}
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between text-xs text-cyan-400 font-bold uppercase mb-1"><span>Visual</span></div>
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-2"><span>Zoom Level</span><span className="text-blue-400">{zoom}px/s</span></div>
+                                            <input type="range" min="10" max="200" step="10" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-2"><span>Wave Height</span><span className="text-blue-400">{waveHeight}px</span></div>
+                                            <input type="range" min="64" max="300" step="10" value={waveHeight} onChange={(e) => setWaveHeight(Number(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-xs text-slate-400">Auto-Scroll</span>
+                                            <button onClick={() => setAutoScroll(!autoScroll)} className={`w-10 h-5 rounded-full relative transition-colors duration-200 ${autoScroll ? 'bg-blue-600' : 'bg-slate-700'}`}>
+                                                <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-transform duration-200 ${autoScroll ? 'left-6' : 'left-1'}`}></div>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-slate-700"></div>
+
+                                    {/* Audio Group */}
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between text-xs text-cyan-400 font-bold uppercase mb-1"><span>Audio</span></div>
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-2"><span>Playback Speed</span><span className="text-blue-400">{playbackRate}x</span></div>
+                                            <input type="range" min="0.5" max="2" step="0.1" value={playbackRate} onChange={(e) => setPlaybackRate(parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                                        </div>
+                                         <div>
+                                            <div className="flex justify-between text-xs text-slate-400 mb-2"><span>Volume</span><span className="text-blue-400">{Math.round(volume * 100)}%</span></div>
+                                            <input type="range" min="0" max="1" step="0.05" value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-8 pt-4 border-t border-slate-700">
+                                    <button onClick={resetSettings} className="w-full text-xs text-slate-500 hover:text-red-400 transition flex items-center justify-center gap-2 py-2">
+                                        <i className="fa-solid fa-rotate-left"></i> Reset to Defaults
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Credits Modal */}
+                    {showCredits && (
+                        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+                            <div className="glass-panel border border-blue-500/30 rounded-2xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(0,0,255,0.3)]">
+                                <div className="mb-6">
+                                    <i className="fa-solid fa-star text-4xl text-yellow-400 animate-pulse mb-4"></i>
+                                    <h2 className="text-2xl font-bold text-white mb-1">Starry Sequencer</h2>
+                                    <p className="text-cyan-400 text-sm tracking-widest uppercase">Recoded Edition</p>
+                                </div>
+                                
+                                <div className="space-y-4 mb-8">
+                                    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                                        <p className="text-xs text-slate-500 uppercase mb-1">Recoded By</p>
+                                        <p className="text-lg font-bold text-blue-300">GEMINI</p>
+                                    </div>
+                                    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                                        <p className="text-xs text-slate-500 uppercase mb-1">FLONK SEQUENCER BY</p>
+                                        <p className="text-base font-semibold text-slate-300">FLONK</p>
+                                    </div>
+                                    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                                        <p className="text-xs text-slate-500 uppercase mb-1">Starry Guy</p>
+                                        <p className="text-lg font-bold text-blue-300">Starry</p>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={() => setShowCredits(false)}
+                                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white py-3 rounded-lg font-bold shadow-lg transition transform hover:scale-105"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Clear Confirmation Modal */}
+                    {showClearModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                            <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full shadow-2xl">
+                                <h3 className="text-xl font-bold text-white mb-2">Clear All Markers?</h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    This will delete all markers from your current session.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button onClick={() => setShowClearModal(false)} className="px-4 py-2 text-slate-400 hover:text-white transition text-sm font-medium">Cancel</button>
+                                    <button onClick={confirmClearAll} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm font-medium shadow-lg">Yes, Clear All</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
